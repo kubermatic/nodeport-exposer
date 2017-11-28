@@ -1,0 +1,20 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nodeport-exposer
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: nodeport-exposer
+    spec:
+      containers:
+      - name: nodeport-exposer
+        image: kubermatic/nodeport-exposer:latest
+        command: ["/nodeport-exposer"]
+        args: [
+          "-logtostderr",
+          "-v=4",
+          "-lb-service-name=default/nodeport-exposer"
+        ]

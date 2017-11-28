@@ -1,0 +1,51 @@
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: nodeport-exposer
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - endpoints
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: nodeport-exposer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: nodeport-exposer
+subjects:
+  - kind: ServiceAccount
+    namespace: default
+    name: nodeport-exposer
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nodeport-exposer
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nodeport-exposer
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: nodeport-exposer
+    spec:
+      serviceAccountName: nodeport-exposer
+      containers:
+      - name: nodeport-exposer
+        image: kubermatic/nodeport-exposer:latest
+        command: ["/nodeport-exposer"]
+        args: [
+          "-logtostderr",
+          "-v=4",
+          "-lb-service-name=default/nodeport-exposer"
+        ]

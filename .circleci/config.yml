@@ -1,0 +1,137 @@
+version: 2
+jobs:
+  checkout_code:
+    docker:
+      - image: circleci/golang:1.9
+    working_directory: /go/src/github.com/kubermatic/nodeport-exposer
+    steps:
+      - checkout
+      - save_cache:
+          key: repo-{{ .Environment.CIRCLE_SHA1 }}
+          paths:
+            - /go/src/github.com/kubermatic/nodeport-exposer
+
+  install-dependencies:
+    docker:
+      - image: circleci/golang:1.9
+    working_directory: /go/src/github.com/kubermatic/nodeport-exposer
+    steps:
+      - restore_cache:
+          key: repo-{{ .Environment.CIRCLE_SHA1 }}
+      - run: go get -u github.com/golang/dep/cmd/dep
+      - run: dep status
+      - run: dep ensure -vendor-only
+      - save_cache:
+          key: vendor-{{ checksum "Gopkg.lock" }}
+          paths:
+            - /go/src/github.com/kubermatic/nodeport-exposer/vendor
+
+  test:
+    docker:
+      - image: circleci/golang:1.9
+    working_directory: /go/src/github.com/kubermatic/nodeport-exposer
+    steps:
+      - restore_cache:
+          key: repo-{{ .Environment.CIRCLE_SHA1 }}
+      - restore_cache:
+          key: vendor-{{ checksum "Gopkg.lock" }}
+      - run: make test
+
+  build:
+    docker:
+      - image: circleci/golang:1.9
+    working_directory: /go/src/github.com/kubermatic/nodeport-exposer
+    steps:
+      - restore_cache:
+          key: repo-{{ .Environment.CIRCLE_SHA1 }}
+      - restore_cache:
+          key: vendor-{{ checksum "Gopkg.lock" }}
+      - run: CGO_ENABLED=0 GOOS=linux make build
+      - persist_to_workspace:
+          root: /go/src/github.com/kubermatic/nodeport-exposer
+          paths:
+            - _output
+
+  push-hash:
+    docker:
+      - image: docker:stable
+    working_directory: /go/src/github.com/kubermatic/nodeport-exposer
+    steps:
+      - restore_cache:
+          key: repo-{{ .Environment.CIRCLE_SHA1 }}
+      - run: apk update && apk add tar
+      - attach_workspace:
+          at: .
+      - setup_remote_docker
+      - run: |
+          docker build -t kubermatic/nodeport-exposer .
+          docker login -u $DOCKER_USER -p $DOCKER_PASS
+          docker tag kubermatic/nodeport-exposer kubermatic/nodeport-exposer:$CIRCLE_SHA1
+          docker push kubermatic/nodeport-exposer:$CIRCLE_SHA1
+
+  push-latest:
+    docker:
+      - image: docker:stable
+    working_directory: /go/src/github.com/kubermatic/nodeport-exposer
+    steps:
+      - restore_cache:
+          key: repo-{{ .Environment.CIRCLE_SHA1 }}
+      - run: apk update && apk add tar
+      - attach_workspace:
+          at: .
+      - setup_remote_docker
+      - run: |
+          docker build -t kubermatic/nodeport-exposer .
+          docker login -u $DOCKER_USER -p $DOCKER_PASS
+          docker tag kubermatic/nodeport-exposer kubermatic/nodeport-exposer:latest
+          docker push kubermatic/nodeport-exposer:latest
+
+  push-release:
+    docker:
+      - image: docker:stable
+    working_directory: /go/src/github.com/kubermatic/nodeport-exposer
+    steps:
+      - restore_cache:
+          key: repo-{{ .Environment.CIRCLE_SHA1 }}
+      - run: apk update && apk add tar
+      - attach_workspace:
+          at: .
+      - setup_remote_docker
+      - run: |
+          docker build -t kubermatic/nodeport-exposer .
+          docker login -u $DOCKER_USER -p $DOCKER_PASS
+          docker tag kubermatic/nodeport-exposer kubermatic/nodeport-exposer:$CIRCLE_TAG
+          docker push kubermatic/nodeport-exposer:$CIRCLE_TAG
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - checkout_code
+      - install-dependencies:
+          requires:
+            - checkout_code
+      - test:
+          requires:
+            - install-dependencies
+      - build:
+          requires:
+            - install-dependencies
+      - push-hash:
+          requires:
+            - build
+      - push-latest:
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - master
+      - push-release:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /v.*/
+            branches:
+              ignore: /.*/

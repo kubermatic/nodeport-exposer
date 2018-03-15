@@ -49,12 +49,15 @@ func (m *Manager) updateEndpoints(targetServices []targetService) error {
 	}
 
 	//Delete old ports
-	for i, sub := range endpoint.Subsets {
+	updatedSubsets := endpoint.Subsets[:0]
+	for _, sub := range endpoint.Subsets {
 		if !subsetExistsInTargetServiceSlice(sub, targetServices) {
 			updated = true
-			endpoint.Subsets = append(endpoint.Subsets[:i], endpoint.Subsets[i+1:]...)
+			continue
 		}
+		updatedSubsets = append(updatedSubsets, sub)
 	}
+	endpoint.Subsets = updatedSubsets
 
 	if updated {
 		_, err = m.client.CoreV1().Endpoints(m.serviceNamespace).Update(endpoint)

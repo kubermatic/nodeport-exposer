@@ -47,12 +47,15 @@ func (m *Manager) updateLBService(targetServices []targetService) error {
 	}
 
 	//Delete old ports
-	for i, sp := range service.Spec.Ports {
+	updatedPorts := service.Spec.Ports[:0]
+	for _, sp := range service.Spec.Ports {
 		if !servicePortExistsInTargetServiceSlice(sp, targetServices) {
 			updated = true
-			service.Spec.Ports = append(service.Spec.Ports[:i], service.Spec.Ports[i+1:]...)
+			continue
 		}
+		updatedPorts = append(updatedPorts, sp)
 	}
+	service.Spec.Ports = updatedPorts
 
 	if updated {
 		_, err = m.client.CoreV1().Services(m.serviceNamespace).Update(service)

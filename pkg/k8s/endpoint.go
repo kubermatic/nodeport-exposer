@@ -28,7 +28,7 @@ func (m *Manager) EnsureEndpoint() error {
 
 func getEndpointSubsetForTargetService(ts targetService) corev1.EndpointSubset {
 	return corev1.EndpointSubset{
-		Ports:     []corev1.EndpointPort{{Port: ts.nodePort, Protocol: ts.protocol}},
+		Ports:     []corev1.EndpointPort{{Port: ts.nodePort}},
 		Addresses: []corev1.EndpointAddress{{IP: ts.clusterIP}},
 	}
 }

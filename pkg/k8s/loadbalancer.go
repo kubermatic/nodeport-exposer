@@ -68,7 +68,7 @@ func getServicePortForTargetService(ts targetService) corev1.ServicePort {
 	return corev1.ServicePort{
 		Port:       ts.nodePort,
 		TargetPort: intstr.IntOrString{IntVal: ts.nodePort, Type: intstr.Int},
-		Protocol:   ts.protocol,
+		Protocol:   corev1.ProtocolTCP,
 		Name:       ts.name,
 	}
 }

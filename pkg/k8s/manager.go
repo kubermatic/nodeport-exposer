@@ -21,6 +21,7 @@ type targetService struct {
 	clusterIP string
 	nodePort  int32
 	name      string
+	protocol  corev1.Protocol
 }
 
 var keepaliveTargetService = targetService{
@@ -51,6 +52,7 @@ func (m *Manager) Update(services []*corev1.Service) error {
 					clusterIP: s.Spec.ClusterIP,
 					nodePort:  sp.NodePort,
 					name:      fmt.Sprintf("%s-%s-%d", s.Namespace, s.Name, sp.NodePort),
+					protocol:  sp.Protocol,
 				})
 			}
 		}
